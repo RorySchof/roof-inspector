@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 MODEL_PATH = Path(__file__).resolve().parent / "model.pkl"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -106,3 +107,8 @@ async def predict(file: UploadFile = File(...)):
         "predicted_index": int(idx),
         "probabilities": class_probs,
     }
+
+
+FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
+if (FRONTEND_DIST / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
