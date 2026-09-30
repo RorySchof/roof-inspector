@@ -1,0 +1,11 @@
+fastai==2.7.12
+fastcore==1.5.30
+torch==2.0.1
+torchvision==0.15.2
+numpy<2
+pillow
+ipython
+fastapi
+uvicorn
+python-multipart
+ddgs
