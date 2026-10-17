@@ -55,7 +55,9 @@ Those photos are for local training. Copyright stays with the photographers. Do 
 
 On the validation split the model got **16/19 correct (84.2% accuracy)**. The three misses were roofs labeled as potential repair and predicted as no obvious repair. That is a small validation set, so the percentage is only a first check.
 
-The exported learner is `model.pkl` in the project root. It is listed in `.gitignore` and is not part of the source tree.
+The exported learner is `model.pkl` in the project root. Git tracks that file. `.gitignore` ignores training images, virtual environments, and env files. It does not ignore `model.pkl`. A clone includes the model file. If `model.pkl` is missing, `POST /predict` returns 503.
+
+`model.pkl` is a ResNet-18 model fine-tuned on a small, manually reviewed set of roof photos. The original training photos are not in this repository. Roof Inspector is a screening demo, not a definitive inspection.
 
 ## Informal smoke test
 
@@ -78,7 +80,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`model.pkl` must sit in this directory. Until it does, `POST /predict` returns 503.
+This repository includes `model.pkl`. If you remove it, `POST /predict` returns 503 until the file is back in this directory.
 
 Start the API:
 
