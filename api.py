@@ -1,3 +1,4 @@
+import threading
 from io import BytesIO
 from pathlib import Path
 
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 _learner = None
+_learner_lock = threading.Lock()
 
 
 def model_ready() -> bool:
@@ -28,7 +30,11 @@ def model_ready() -> bool:
 def get_learner():
     """Load the exported fast.ai learner once, after training creates model.pkl."""
     global _learner
-    if _learner is None:
+    if _learner is not None:
+        return _learner
+    with _learner_lock:
+        if _learner is not None:
+            return _learner
         if not model_ready():
             raise HTTPException(
                 status_code=503,
@@ -40,12 +46,21 @@ def get_learner():
         from fastai.vision.all import load_learner
 
         _learner = load_learner(MODEL_PATH)
-    return _learner
+        return _learner
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_ready": model_ready()}
+    try:
+        learner = get_learner()
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="The analysis model could not be loaded.",
+        ) from None
+    return {"status": "ok", "model_ready": learner is not None}
 
 
 async def read_upload(file: UploadFile) -> bytes:

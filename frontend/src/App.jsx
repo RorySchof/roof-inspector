@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/predict'
-const HEALTH_TIMEOUT_MS = 90000
+const HEALTH_TIMEOUT_MS = 180000
 const PREDICT_TIMEOUT_MS = 120000
 
 function healthUrl(apiUrl, origin = 'http://127.0.0.1:8000') {
@@ -61,13 +61,13 @@ async function checkService() {
 let pendingHealthCheck = null
 
 function ensureService() {
-  if (!pendingHealthCheck) {
-    const request = checkService().finally(() => {
-      if (pendingHealthCheck === request) pendingHealthCheck = null
-    })
-    pendingHealthCheck = request
-  }
-  return pendingHealthCheck
+  if (pendingHealthCheck) return pendingHealthCheck
+  const request = checkService().catch((err) => {
+    if (pendingHealthCheck === request) pendingHealthCheck = null
+    throw err
+  })
+  pendingHealthCheck = request
+  return request
 }
 
 const CLASS_COPY = {
