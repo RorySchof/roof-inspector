@@ -58,6 +58,18 @@ async function checkService() {
   }
 }
 
+let pendingHealthCheck = null
+
+function ensureService() {
+  if (!pendingHealthCheck) {
+    const request = checkService().finally(() => {
+      if (pendingHealthCheck === request) pendingHealthCheck = null
+    })
+    pendingHealthCheck = request
+  }
+  return pendingHealthCheck
+}
+
 const CLASS_COPY = {
   potential_repair_needed: {
     tone: 'attention',
@@ -111,6 +123,10 @@ function App() {
   const [result, setResult] = useState(null)
 
   useEffect(() => {
+    ensureService().catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
     if (!file) {
       setPreviewUrl('')
       return undefined
@@ -162,7 +178,7 @@ function App() {
     setResult(null)
 
     try {
-      await checkService()
+      await ensureService()
 
       const formData = new FormData()
       formData.append('file', file)
