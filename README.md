@@ -98,11 +98,11 @@ npm run dev
 
 Open [http://127.0.0.1:5173/](http://127.0.0.1:5173/). The page calls `http://127.0.0.1:8000/predict` unless `VITE_API_URL` is set.
 
-To point a production frontend build at an API, set that variable when you build. Do not hardcode a host in the source. There is no deployment URL in this repo yet.
+A public demo is deployed at [roof-inspector.onrender.com](https://roof-inspector.onrender.com/). That build posts to `/predict` on the same host.
+
+To point another frontend build at an API, set `VITE_API_URL` when you build. Vite reads it at build time and bakes it into the static files. `frontend/.env.example` shows the local value.
 
 ```bash
 cd frontend
-VITE_API_URL=https://example.invalid/predict npm run build
+VITE_API_URL=https://roof-inspector.onrender.com/predict npm run build
 ```
-
-Replace `https://example.invalid/predict` with the real `/predict` URL when one exists. Vite reads `VITE_API_URL` at build time and bakes it into the static files. `frontend/.env.example` shows the local value.

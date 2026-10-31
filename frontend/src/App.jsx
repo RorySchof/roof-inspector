@@ -2,6 +2,61 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/predict'
+const HEALTH_TIMEOUT_MS = 90000
+const PREDICT_TIMEOUT_MS = 120000
+
+function healthUrl(apiUrl, origin = 'http://127.0.0.1:8000') {
+  const url = new URL(apiUrl, origin)
+  url.pathname = url.pathname.replace(/\/predict\/?$/, '/health')
+  url.search = ''
+  url.hash = ''
+  return url.toString()
+}
+
+const HEALTH_URL = healthUrl(
+  API_URL,
+  typeof window === 'undefined' ? 'http://127.0.0.1:8000' : window.location.origin,
+)
+
+function serviceError(code) {
+  const error = new Error(code)
+  error.code = code
+  return error
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    window.clearTimeout(timer)
+  }
+}
+
+async function checkService() {
+  let response
+  try {
+    response = await fetchWithTimeout(HEALTH_URL, { method: 'GET' }, HEALTH_TIMEOUT_MS)
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err
+    throw serviceError('unreachable')
+  }
+
+  let payload = null
+  try {
+    payload = await response.json()
+  } catch {
+    payload = null
+  }
+
+  if (!response.ok || payload?.status !== 'ok') {
+    throw serviceError('unreachable')
+  }
+  if (payload.model_ready === false) {
+    throw serviceError('unavailable')
+  }
+}
 
 const CLASS_COPY = {
   potential_repair_needed: {
@@ -51,6 +106,7 @@ function App() {
   const [previewUrl, setPreviewUrl] = useState('')
   const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [serviceDown, setServiceDown] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
 
@@ -71,6 +127,7 @@ function App() {
       return
     }
     setError('')
+    setServiceDown(false)
     setResult(null)
     setFile(selected)
   }
@@ -101,16 +158,19 @@ function App() {
 
     setLoading(true)
     setError('')
+    setServiceDown(false)
     setResult(null)
 
     try {
+      await checkService()
+
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch(API_URL, {
+      const response = await fetchWithTimeout(API_URL, {
         method: 'POST',
         body: formData,
-      })
+      }, PREDICT_TIMEOUT_MS)
 
       let payload = null
       try {
@@ -125,10 +185,18 @@ function App() {
 
       setResult(payload)
     } catch (err) {
-      const offline = err?.message === 'Failed to fetch'
-      setError(offline
-        ? "We couldn't reach Roof Inspector. Check your connection and try again."
-        : (err.message || "We couldn't analyze this photo. Please try again."))
+      if (err?.name === 'AbortError' || err?.code === 'unreachable') {
+        setServiceDown(true)
+        setError('The analysis service may need a moment to wake up. Please try again.')
+      } else if (err?.code === 'unavailable') {
+        setServiceDown(true)
+        setError('Roof screening is temporarily unavailable. Please try again later.')
+      } else if (err?.message === 'Failed to fetch') {
+        setServiceDown(true)
+        setError("We couldn't reach Roof Inspector. Check your connection and try again.")
+      } else {
+        setError(err.message || "We couldn't analyze this photo. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -138,6 +206,7 @@ function App() {
     setFile(null)
     setResult(null)
     setError('')
+    setServiceDown(false)
     setDragging(false)
     if (inputRef.current) inputRef.current.value = ''
   }
@@ -213,13 +282,19 @@ function App() {
           )}
 
           {!result && (
+            <p className="status" role="status">
+              The analysis service may need a moment to wake up.
+            </p>
+          )}
+
+          {!result && (
             <button
               type="button"
               className="analyze"
               onClick={onPredict}
               disabled={loading || !file}
             >
-              {loading ? 'Analyzing...' : 'Inspect This Roof →'}
+              {loading ? 'Analyzing...' : serviceDown ? 'Try again' : 'Inspect This Roof →'}
             </button>
           )}
 

@@ -185,6 +185,13 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.status {
+  margin: 0;
+  color: #6f6a63;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .analyze,
 .another {
   border: 0;
